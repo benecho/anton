@@ -37,9 +37,13 @@ export default function ControlPanel({ params, handleChange, calculate, loading,
 
                 <div>
                     <label>Steps (N)</label>
-                    <input type="number" name="N" value={params.N} onChange={handleChange} max="200" required />
+                    <input type="number" name="N" value={params.N} onChange={handleChange} max="500" required />
                     <small style={{ display: 'block', color: '#64748b', fontSize: '0.7rem', marginTop: 4 }}>
-                        {Number(params.N) > 10 ? "Tree will show steps: 1, 10, 20, 30..." : "Full tree display"}
+                        {Number(params.N) > 100
+                            ? "Matrix Heatmap display (N > 100)"
+                            : Number(params.N) > 10
+                                ? "Tree will show steps: 1, 10, 20... (N > 10)"
+                                : "Full tree node display (N ≤ 10)"}
                     </small>
                 </div>
 

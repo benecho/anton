@@ -18,8 +18,11 @@ function App() {
     const [loading, setLoading] = useState(false);
 
     const handleChange = (e) => {
+        setResult(null); // Clear immediately to prevent rendering heavy tree with new params
         setParams({ ...params, [e.target.name]: e.target.value });
     };
+
+    // Removed useEffect to avoid double render cycle
 
     const calculate = async (e) => {
         e.preventDefault();
@@ -94,7 +97,10 @@ function App() {
 
                     <CalibrationPanel
                         params={params}
-                        setParams={setParams}
+                        setParams={(update) => {
+                            setResult(null);
+                            setParams(update);
+                        }}
                         style={{ marginTop: '2rem' }}
                     />
                 </div>
