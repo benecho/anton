@@ -66,9 +66,18 @@ static void trinomial_probs(double sigma_i, double r, double dt, double u,
 static void buildPriceTree(Params p, double *PT) {
   if (!PT)
     return;
+
+  double dt = p.T / p.N;
+
   for (int i = 0; i <= p.N; i++) {
+    // Calcular sigma, u y d para este paso específico (Variable Grid)
+    double sigma = sigma_at_step(i, p);
+    double u = exp(sigma * sqrt(2.0 * dt));
+
     for (int j = -i; j <= i; j++) {
-      PT[idx(i, j, p.N)] = p.S0 * pow(p.u, j);
+      // Nota: Si el usuario requiere que el grid cambie con sigma, esto
+      // funciona visualmente.
+      PT[idx(i, j, p.N)] = p.S0 * pow(u, j);
     }
   }
 }
@@ -85,40 +94,50 @@ static void buildValueTree(Params p, double *VT, double *PT) {
   double *localPT = NULL;
   if (!PT) {
     localPT = (double *)malloc((p.N + 1) * (2 * p.N + 1) * sizeof(double));
-    buildPriceTree(p, localPT);
+    buildPriceTree(p, localPT); // BuildPriceTree handle sus propios u/d locales
     PT = localPT;
   }
 
   // 1. PAYOFF FINAL (t_N)
-  for (int j = -p.N; j <= p.N; j++) {
-    double S = PT[idx(p.N, j, p.N)];
-    double val = (p.type == CALL ? (S - p.K) : (p.K - S));
-    VT[idx(p.N, j, p.N)] = (val > 0) ? val : 0.0;
+  {
+    double sigma_end = sigma_at_step(p.N, p);
+    double u_end = exp(sigma_end * sqrt(2.0 * dt));
+
+    for (int j = -p.N; j <= p.N; j++) {
+      double S = p.S0 * pow(u_end, j);
+      // Usaremos PT si existe para consistencia total.
+      S = PT[idx(p.N, j, p.N)];
+
+      double val = (p.type == CALL ? (S - p.K) : (p.K - S));
+      VT[idx(p.N, j, p.N)] = (val > 0) ? val : 0.0;
+    }
   }
 
   // 2. BACKWARD INDUCTION
+  // Iteramos i desde N-1 hasta 0.
+  // En step i, calculamos valor esperado de nodes i+1.
   for (int i = p.N - 1; i >= 0; i--) {
 
     double sigma = sigma_at_step(i, p);
+    // USAR sqrt(2*dt) para estabilidad del modelo trinomial
+    double u = exp(sigma * sqrt(2.0 * dt));
+    double d = 1.0 / u;
+
     double pu, pm, pd;
-    trinomial_probs(sigma, p.r, dt, p.u, p.d, &pu, &pm, &pd);
+    trinomial_probs(sigma, p.r, dt, u, d, &pu, &pm, &pd);
 
     for (int j = -i; j <= i; j++) {
 
-      double V_u = VT[idx(i + 1, j + 1, p.N)];
-      double V_m = VT[idx(i + 1, j, p.N)];
-      double V_d = VT[idx(i + 1, j - 1, p.N)];
-
-      double cont = disc * (pu * V_u + pm * V_m + pd * V_d);
+      double cont = disc * (pu * VT[idx(i + 1, j + 1, p.N)] +
+                            pm * VT[idx(i + 1, j, p.N)] +
+                            pd * VT[idx(i + 1, j - 1, p.N)]);
 
       if (p.isAmerican) {
-        // Opción Americana: max(V_{cont}, V_{intr})
-        double S = PT[idx(i, j, p.N)];
-        double intr = (p.type == CALL ? (S - p.K) : (p.K - S));
+        double S_node = PT[idx(i, j, p.N)];
+        double intr = (p.type == CALL ? (S_node - p.K) : (p.K - S_node));
         if (intr < 0)
           intr = 0;
         VT[idx(i, j, p.N)] = (cont > intr) ? cont : intr;
-
       } else {
         VT[idx(i, j, p.N)] = cont;
       }
@@ -131,9 +150,9 @@ static void buildValueTree(Params p, double *VT, double *PT) {
 
 // Pricer rápido sin guardar árboles (para Nelder-Mead)
 static double trinomialPricerOnly(Params p) {
-  // Lógica eficiente de valoración sin construir el árbol de precios.
   double dt = p.T / p.N;
   double disc = exp(-p.r * dt);
+
   int W = 2 * p.N + 1;
   double *V = (double *)malloc((p.N + 1) * W * sizeof(double));
 
@@ -141,18 +160,26 @@ static double trinomialPricerOnly(Params p) {
     return NAN;
 
   // PAYOFF FINAL
-  for (int j = -p.N; j <= p.N; j++) {
-    double S = p.S0 * pow(p.u, j);
-    double val = (p.type == CALL ? (S - p.K) : (p.K - S));
-    V[idx(p.N, j, p.N)] = (val > 0) ? val : 0.0;
+  {
+    double sigma_end = sigma_at_step(p.N, p);
+    double u_end = exp(sigma_end * sqrt(2.0 * dt));
+
+    for (int j = -p.N; j <= p.N; j++) {
+      double S = p.S0 * pow(u_end, j);
+      double val = (p.type == CALL ? (S - p.K) : (p.K - S));
+      V[idx(p.N, j, p.N)] = (val > 0) ? val : 0.0;
+    }
   }
 
   // BACKWARD INDUCTION
   for (int i = p.N - 1; i >= 0; i--) {
 
     double sigma = sigma_at_step(i, p);
+    double u = exp(sigma * sqrt(2.0 * dt));
+    double d = 1.0 / u;
+
     double pu, pm, pd;
-    trinomial_probs(sigma, p.r, dt, p.u, p.d, &pu, &pm, &pd);
+    trinomial_probs(sigma, p.r, dt, u, d, &pu, &pm, &pd);
 
     for (int j = -i; j <= i; j++) {
 
@@ -161,7 +188,7 @@ static double trinomialPricerOnly(Params p) {
                   pd * V[idx(i + 1, j - 1, p.N)]);
 
       if (p.isAmerican) {
-        double S = p.S0 * pow(p.u, j);
+        double S = p.S0 * pow(u, j);
         double intr = (p.type == CALL ? (S - p.K) : (p.K - S));
         if (intr < 0)
           intr = 0;

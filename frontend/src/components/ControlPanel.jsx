@@ -3,11 +3,7 @@ import { motion } from 'framer-motion';
 
 export default function ControlPanel({ params, handleChange, calculate, loading, setParams }) {
 
-    useEffect(() => {
-        if (Number(params.N) > 10 && params.showTree) {
-            setParams(prev => ({ ...prev, showTree: false }));
-        }
-    }, [params.N]);
+    // Removed auto-disable logic - now tree works for all N values
 
     return (
         <motion.div
@@ -39,22 +35,11 @@ export default function ControlPanel({ params, handleChange, calculate, loading,
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                        <label>Up Factor (u)</label>
-                        <input type="number" name="u" value={params.u} onChange={handleChange} step="0.001" required />
-                    </div>
-                    <div>
-                        <label>Down Factor (d)</label>
-                        <input type="number" name="d" value={params.d} onChange={handleChange} step="0.001" required />
-                    </div>
-                </div>
-
                 <div>
                     <label>Steps (N)</label>
                     <input type="number" name="N" value={params.N} onChange={handleChange} max="200" required />
                     <small style={{ display: 'block', color: '#64748b', fontSize: '0.7rem', marginTop: 4 }}>
-                        {Number(params.N) > 10 ? "Tree visualization disabled (N > 10)" : "Max for tree: 10"}
+                        {Number(params.N) > 10 ? "Tree will show steps: 1, 10, 20, 30..." : "Full tree display"}
                     </small>
                 </div>
 
@@ -89,13 +74,12 @@ export default function ControlPanel({ params, handleChange, calculate, loading,
                 </div>
 
                 <div style={{ marginTop: '0.5rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: Number(params.N) > 10 ? 'not-allowed' : 'pointer' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                         <input
                             type="checkbox"
                             name="showTree"
                             checked={params.showTree}
                             onChange={(e) => setParams({ ...params, showTree: e.target.checked })}
-                            disabled={Number(params.N) > 10}
                             style={{ width: 'auto' }}
                         />
                         <span>Show Tree Visualization</span>

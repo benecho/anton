@@ -8,7 +8,6 @@ import CalibrationPanel from './components/CalibrationPanel';
 function App() {
     const [params, setParams] = useState({
         S0: 100, K: 100, T: 1, N: 5, r: 0.05,
-        u: 1.02, d: 1 / 1.02,
         isAmerican: true,
         type: 'CALL',
         ThetaStr: "0.2, 0.25, 0.22",
@@ -35,8 +34,6 @@ function App() {
                 T: Number(params.T),
                 r: Number(params.r),
                 N: Number(params.N),
-                u: Number(params.u),
-                d: Number(params.d),
                 type: params.type,
                 isAmerican: params.isAmerican,
                 Theta: Theta,
@@ -46,7 +43,7 @@ function App() {
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
             let response;
-            if (params.showTree && params.N <= 10) {
+            if (params.showTree) {
                 response = await axios.post(`${apiUrl}/tree`, payload);
             } else {
                 response = await axios.post(`${apiUrl}/price`, payload);
@@ -66,7 +63,7 @@ function App() {
             maxWidth: '1800px',
             margin: '0 auto'
         }}>
-            <header style={{ marginBottom: '2rem', textAlign: 'center' }}>
+            <header style={{ marginBottom: '5rem', textAlign: 'center' }}>
                 <h1 style={{ fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>
                     Trinomial <span style={{ color: '#3b82f6' }}>Pricer</span>
                 </h1>
@@ -75,7 +72,7 @@ function App() {
 
             <div style={{
                 display: 'flex',
-                gap: '1.5rem',
+                gap: '5rem',
                 alignItems: 'flex-start',
                 flexWrap: 'wrap'
             }}>
@@ -98,6 +95,7 @@ function App() {
                     <CalibrationPanel
                         params={params}
                         setParams={setParams}
+                        style={{ marginTop: '2rem' }}
                     />
                 </div>
 
@@ -106,7 +104,7 @@ function App() {
                     minWidth: '280px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '1.5rem'
+                    gap: '5rem'
                 }}
                     className="results-container"
                 >

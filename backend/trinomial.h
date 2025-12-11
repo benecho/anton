@@ -16,9 +16,7 @@ typedef struct {
   enum OptionType type;
 
   // Parámetros del modelo (Malla y Volatilidad)
-  int N;    // Pasos de tiempo
-  double u; // Factor up
-  double d; // Factor down (d = 1/u)
+  int N; // Pasos de tiempo
 
   // Estructura de Volatilidad Local
   int M;         // Número de tramos

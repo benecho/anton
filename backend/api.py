@@ -55,8 +55,6 @@ class Params(ctypes.Structure):
         ("isAmerican", ctypes.c_int),
         ("type", ctypes.c_int), # 0=CALL, 1=PUT
         ("N", ctypes.c_int),
-        ("u", ctypes.c_double),
-        ("d", ctypes.c_double),
         ("M", ctypes.c_int),
         ("Theta", ctypes.POINTER(ctypes.c_double)),
         ("tau", ctypes.POINTER(ctypes.c_double))
@@ -89,8 +87,6 @@ class ModelParams(BaseModel):
     N: int
     type: str # "CALL" or "PUT"
     isAmerican: bool
-    u: float
-    d: float
     tm: Optional[int] = None # M, renaming to avoid confusion but mapping to M
     Theta: List[float]
     tau: List[float]
@@ -130,9 +126,8 @@ def get_c_params(input_data: ModelParams) -> Params:
     p.K = input_data.K
     p.isAmerican = 1 if input_data.isAmerican else 0
     p.type = option_type
+    p.type = option_type
     p.N = input_data.N
-    p.u = input_data.u
-    p.d = input_data.d
     p.M = M
     p.Theta = ctypes.cast(ThetaArray, ctypes.POINTER(ctypes.c_double))
     p.tau = ctypes.cast(TauArray, ctypes.POINTER(ctypes.c_double))
@@ -220,8 +215,6 @@ def calculate_tree(params: ModelParams):
 class CalibrationParams(BaseModel):
     S0: float
     r: float
-    u: float
-    d: float
     N: int
     M: int
     Theta_initial: List[float]
@@ -278,8 +271,6 @@ def calibrate(params: CalibrationParams):
     template.S0 = params.S0
     template.r = params.r
     template.N = params.N
-    template.u = params.u
-    template.d = params.d
     template.M = M
     template.Theta = ctypes.cast(ThetaArray, ctypes.POINTER(ctypes.c_double))
     template.tau = ctypes.cast(TauArray, ctypes.POINTER(ctypes.c_double))

@@ -1,7 +1,140 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 
 export default function TreeVisualizer({ priceTree, valueTree, nSteps, showTree }) {
+
+    // Helper: Interpolate color from Red (low) to Green (high)
+    // Value 0 => Red (#ef4444)
+    // Value max => Green (#22c55e)
+    const getColor = (val, maxVal) => {
+        if (maxVal === 0) return '#ef4444'; // default red if all 0
+        const ratio = Math.max(0, Math.min(1, val / maxVal));
+
+        // Red: 239, 68, 68
+        // Green: 34, 197, 94
+        const r = Math.round(239 + (34 - 239) * ratio);
+        const g = Math.round(68 + (197 - 68) * ratio);
+        const b = Math.round(68 + (94 - 68) * ratio);
+
+        return `rgb(${r}, ${g}, ${b})`;
+    };
+
+    const treeData = useMemo(() => {
+        if (!priceTree || !priceTree.length) return null;
+
+        // Steps to display logic
+        let displaySteps = [];
+        const totalSteps = priceTree.length; // This is N + 1 levels
+
+        if (Number(nSteps) <= 10) {
+            // Show all steps
+            for (let i = 0; i < totalSteps; i++) displaySteps.push(i);
+        } else {
+            // Show 0, 10, 20... (Indices: 0, 10, 20...)
+            // Always include last step
+            for (let i = 0; i < totalSteps; i += 10) {
+                displaySteps.push(i);
+            }
+            if (displaySteps[displaySteps.length - 1] !== totalSteps - 1) {
+                displaySteps.push(totalSteps - 1);
+            }
+        }
+
+        // Find max value in the entire tree for heatmap normalization
+        let maxOptionValue = 0;
+        valueTree.forEach(level => {
+            level.forEach(val => {
+                if (val > maxOptionValue) maxOptionValue = val;
+            });
+        });
+
+        const nodes = [];
+        const links = [];
+        const stepLabels = [];
+
+        // Responsive sizing based on N
+        const isLargeN = Number(nSteps) > 10;
+        const nodeRadius = isLargeN ? 12 : 16;
+        const fontSize = isLargeN ? 7 : 9;
+        const priceSize = isLargeN ? 6 : 7;
+
+        const levelWidth = 140; // Increased horizontal spacing for separators
+        const width = displaySteps.length * levelWidth + 100;
+
+        // Increased vertical spacing
+        const lastRealStep = displaySteps[displaySteps.length - 1];
+        const maxVerticalNodes = 2 * lastRealStep + 1;
+        const spacingY = isLargeN ? 35 : 50; // Increased vertical spacing
+        const height = Math.max(600, maxVerticalNodes * spacingY + 100);
+        const centerY = height / 2;
+
+        displaySteps.forEach((realStepIndex, visualIndex) => {
+            const levelNodes = priceTree[realStepIndex];
+            const levelValues = valueTree[realStepIndex];
+
+            // Position for this step
+            const x = visualIndex * levelWidth + 50;
+
+            // Add step label above the column
+            stepLabels.push({
+                x: x,
+                y: 30,
+                step: realStepIndex
+            });
+
+            // Check if we need separator dots (when there's a gap between steps)
+            if (visualIndex > 0) {
+                const prevRealStep = displaySteps[visualIndex - 1];
+                if (realStepIndex - prevRealStep > 1) {
+                    // Add three vertical dots between columns
+                    const midX = x - levelWidth / 2;
+                    const dotSpacing = 15;
+                    for (let d = 0; d < 3; d++) {
+                        nodes.push({
+                            id: `separator-${visualIndex}-${d}`,
+                            x: midX,
+                            y: centerY - dotSpacing + d * dotSpacing,
+                            isSeparator: true
+                        });
+                    }
+                }
+            }
+
+            // Render nodes for this step
+            for (let k = 0; k < levelNodes.length; k++) {
+                const j = k - realStepIndex;
+                const y = centerY - j * spacingY;
+
+                const val = levelValues[k];
+                const price = levelNodes[k];
+                const color = getColor(val, maxOptionValue);
+
+                nodes.push({
+                    id: `${realStepIndex}-${k}`,
+                    x, y,
+                    price, val, color,
+                    isSeparator: false
+                });
+
+                // Draw links only if steps are consecutive
+                if (visualIndex < displaySteps.length - 1) {
+                    const nextRealStep = displaySteps[visualIndex + 1];
+                    if (nextRealStep === realStepIndex + 1) {
+                        const nextX = (visualIndex + 1) * levelWidth + 50;
+                        const targets = [k, k + 1, k + 2];
+                        targets.forEach(targetK => {
+                            const targetJ = targetK - nextRealStep;
+                            const targetY = centerY - targetJ * spacingY;
+                            links.push({ x1: x, y1: y, x2: nextX, y2: targetY });
+                        });
+                    }
+                }
+            }
+        });
+
+        return { nodes, links, width, height, maxOptionValue, stepLabels, nodeRadius, fontSize, priceSize };
+
+    }, [priceTree, valueTree, nSteps]);
 
     if (!showTree) {
         return (
@@ -18,22 +151,7 @@ export default function TreeVisualizer({ priceTree, valueTree, nSteps, showTree 
         );
     }
 
-    if (Number(nSteps) > 10) {
-        return (
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="glass-panel"
-                style={{ padding: '1.5rem', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-                <p style={{ textAlign: 'center', color: '#94a3b8' }}>
-                    N is too large to visualize the tree directly. Try N &le; 10.
-                </p>
-            </motion.div>
-        );
-    }
-
-    if (!priceTree || !priceTree.length) {
+    if (!treeData) {
         return (
             <motion.div
                 initial={{ opacity: 0 }}
@@ -48,84 +166,38 @@ export default function TreeVisualizer({ priceTree, valueTree, nSteps, showTree 
         );
     }
 
-    const steps = priceTree.length;
-    const nodeRadius = 18;
-    const levelWidth = 100;
-    const levelHeight = 50;
-    const width = steps * levelWidth + 100;
-    // Calculate visualization height based on max nodes (at last step 2N+1 nodes)
-    const maxNodes = 2 * (steps - 1) + 1;
-    const height = maxNodes * levelHeight + 100;
-    const centerY = height / 2;
-
-    const nodes = [];
-    const links = [];
-
-    // Identify and position nodes
-    for (let i = 0; i < steps; i++) {
-        // En trinomial, nivel i tiene 2*i + 1 nodos
-        // El backend devuelve lista de listas. priceTree[i] es array de length 2*i+1.
-
-        for (let k = 0; k < priceTree[i].length; k++) {
-            const x = i * levelWidth + 50;
-
-            // k va de 0 a 2i. 
-            // k=i es el centro (j=0). 
-            // Queremos que k=2i (j=i, precio mas alto) este arriba (y menor).
-            // Queremos que k=0 (j=-i, precio mas bajo) este abajo (y mayor).
-
-            // offset from center: j = k - i.
-            // y = centerY - j * levelHeight
-            //   = centerY - (k - i) * levelHeight
-            //   = centerY + (i - k) * levelHeight
-
-            const j = k - i;
-            const y = centerY - j * levelHeight;
-
-            nodes.push({
-                id: `${i}-${k}`,
-                x,
-                y,
-                price: priceTree[i][k],
-                value: valueTree[i][k]
-            });
-
-            // Links to next step
-            if (i < steps - 1) {
-                // Node (i, k) conecta con (i+1, k), (i+1, k+1), (i+1, k+2)
-                const nextX = (i + 1) * levelWidth + 50;
-
-                // Targets k indices in next level
-                const targets = [k, k + 1, k + 2];
-
-                targets.forEach(targetK => {
-                    const targetJ = targetK - (i + 1);
-                    const targetY = centerY - targetJ * levelHeight;
-
-                    links.push({
-                        x1: x, y1: y,
-                        x2: nextX, y2: targetY
-                    });
-                });
-            }
-        }
-    }
+    const { nodes, links, width, height, maxOptionValue, stepLabels, nodeRadius, fontSize, priceSize } = treeData;
 
     return (
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="glass-panel"
-            style={{ padding: '1.5rem', minHeight: '400px', overflowX: 'auto' }}
+            style={{ padding: '1.5rem', minHeight: '400px', overflowX: 'auto', overflowY: 'hidden' }}
         >
-            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Trinomial Tree Visualization</h3>
-            <div style={{ overflow: 'auto', textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ margin: 0 }}>Trinomial Heatmap Tree</h3>
+                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                    Showing steps: {Number(nSteps) > 10 ? '0, 10, 20, 30...' : 'All'}
+                </div>
+            </div>
+
+            <div style={{ overflow: 'auto', textAlign: 'center', maxHeight: '800px' }}>
                 <svg width={width} height={height}>
-                    <defs>
-                        <marker id="arrow" markerWidth="6" markerHeight="6" refX="16" refY="3" orient="auto" markerUnits="strokeWidth">
-                            <path d="M0,0 L0,6 L9,3 z" fill="#475569" />
-                        </marker>
-                    </defs>
+                    {/* Step labels */}
+                    {stepLabels.map((label, idx) => (
+                        <text
+                            key={`label-${idx}`}
+                            x={label.x}
+                            y={label.y}
+                            textAnchor="middle"
+                            fontSize="11"
+                            fill="#94a3b8"
+                            fontWeight="600"
+                        >
+                            Step {label.step}
+                        </text>
+                    ))}
 
                     {links.map((link, idx) => (
                         <line
@@ -134,25 +206,54 @@ export default function TreeVisualizer({ priceTree, valueTree, nSteps, showTree 
                             x2={link.x2} y2={link.y2}
                             stroke="#475569"
                             strokeWidth="1"
-                            opacity="0.4"
+                            opacity="0.3"
                         />
                     ))}
 
-                    {nodes.map((node) => (
-                        <g key={node.id}>
-                            <circle cx={node.x} cy={node.y} r={nodeRadius} fill="#1e293b" stroke="#3b82f6" strokeWidth="2" />
-                            <text x={node.x} y={node.y - 4} textAnchor="middle" fontSize="10" fill="white" fontWeight="bold">
-                                {node.value.toFixed(2)}
-                            </text>
-                            <text x={node.x} y={node.y + 8} textAnchor="middle" fontSize="8" fill="#94a3b8">
-                                {node.price.toFixed(1)}
-                            </text>
-                        </g>
-                    ))}
+                    {nodes.map((node) => {
+                        if (node.isSeparator) {
+                            // Render separator dots
+                            return (
+                                <circle
+                                    key={node.id}
+                                    cx={node.x}
+                                    cy={node.y}
+                                    r={3}
+                                    fill="#64748b"
+                                />
+                            );
+                        }
+
+                        // Render regular nodes
+                        return (
+                            <g key={node.id}>
+                                <circle
+                                    cx={node.x} cy={node.y}
+                                    r={nodeRadius}
+                                    fill={node.color}
+                                    stroke={node.val === maxOptionValue ? "#fff" : "none"}
+                                    strokeWidth={node.val === maxOptionValue ? 2 : 0}
+                                />
+                                <text x={node.x} y={node.y - 3} textAnchor="middle" fontSize={fontSize} fill="white" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                                    {node.val.toFixed(2)}
+                                </text>
+                                <text x={node.x} y={node.y + 7} textAnchor="middle" fontSize={priceSize} fill="rgba(255,255,255,0.8)" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                                    {node.price.toFixed(1)}
+                                </text>
+                            </g>
+                        );
+                    })}
                 </svg>
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem', fontSize: '0.8rem', color: '#94a3b8' }}>
-                    <span style={{ color: 'white', fontWeight: 'bold' }}>Bold: Option Value</span>
-                    <span style={{ color: '#94a3b8' }}>Gray: Stock Price</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem', fontSize: '0.8rem', color: '#94a3b8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ width: 12, height: 12, background: '#ef4444', borderRadius: '50%', display: 'inline-block' }}></span>
+                    <span>Low Value (0)</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ width: 12, height: 12, background: '#22c55e', borderRadius: '50%', display: 'inline-block' }}></span>
+                    <span>High Value</span>
                 </div>
             </div>
         </motion.div>

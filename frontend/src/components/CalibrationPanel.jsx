@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 
-export default function CalibrationPanel({ params, setParams }) {
+export default function CalibrationPanel({ params, setParams, style }) {
     const [calibrating, setCalibrating] = useState(false);
     const [calibrationResult, setCalibrationResult] = useState(null);
     const [marketData, setMarketData] = useState({
@@ -50,8 +50,6 @@ export default function CalibrationPanel({ params, setParams }) {
             const payload = {
                 S0: Number(params.S0),
                 r: Number(params.r),
-                u: Number(params.u),
-                d: Number(params.d),
                 N: Number(params.N),
                 M: Theta.length,
                 Theta_initial: Theta,
@@ -86,7 +84,7 @@ export default function CalibrationPanel({ params, setParams }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="glass-panel"
-            style={{ padding: '1.5rem', marginTop: '0' }} // margin handled by parent flex gap
+            style={{ padding: '1.5rem', ...style }} // Merge style prop with default padding
         >
             <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.2rem', color: '#fff' }}>
                 Market Calibration
@@ -177,7 +175,7 @@ export default function CalibrationPanel({ params, setParams }) {
                         animate={{ opacity: 1, y: 0 }}
                         style={{
                             marginTop: '0.5rem',
-                            padding: '1rem',
+                            padding: '0.5rem',
                             background: 'rgba(16, 185, 129, 0.1)',
                             borderRadius: '8px',
                             border: '1px solid rgba(16, 185, 129, 0.3)'
@@ -197,6 +195,6 @@ export default function CalibrationPanel({ params, setParams }) {
                     </motion.div>
                 )}
             </div>
-        </motion.div>
+        </motion.div >
     );
 }
