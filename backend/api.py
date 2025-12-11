@@ -4,14 +4,29 @@ from pydantic import BaseModel
 from typing import List, Optional
 import ctypes
 import numpy as np
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Get frontend URL from environment (for CORS)
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 app = FastAPI()
 
 from fastapi.middleware.cors import CORSMiddleware
 
+# Configure CORS with environment variable
+allowed_origins = [
+    FRONTEND_URL,
+    "http://localhost:5173",  # Fallback for local dev
+    "http://127.0.0.1:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
