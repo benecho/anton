@@ -8,12 +8,10 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Servidor de producción con nginx
 FROM nginx:alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Configuración de nginx para SPA
 RUN echo 'server { \
     listen 80; \
     location / { \

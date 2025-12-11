@@ -1,17 +1,48 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-export default function TreeVisualizer({ priceTree, valueTree, nSteps }) {
-    if (Number(nSteps) > 15) {
+export default function TreeVisualizer({ priceTree, valueTree, nSteps, showTree }) {
+
+    if (!showTree) {
         return (
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="glass-panel"
-                style={{ padding: '1.5rem' }}
+                style={{ padding: '1.5rem', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-                <p style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
-                    N is too large to visualize the tree directly. Try N &le; 15.
+                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>
+                    ✓ Tree visualization disabled. Enable "Show Tree Visualization" to view.
+                </p>
+            </motion.div>
+        );
+    }
+
+    if (Number(nSteps) > 10) {
+        return (
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="glass-panel"
+                style={{ padding: '1.5rem', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+                <p style={{ textAlign: 'center', color: '#94a3b8' }}>
+                    N is too large to visualize the tree directly. Try N &le; 10.
+                </p>
+            </motion.div>
+        );
+    }
+
+    if (!priceTree || !priceTree.length) {
+        return (
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="glass-panel"
+                style={{ padding: '1.5rem', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>
+                    Click "Calculate Price" to generate the tree visualization
                 </p>
             </motion.div>
         );
@@ -19,28 +50,63 @@ export default function TreeVisualizer({ priceTree, valueTree, nSteps }) {
 
     const steps = priceTree.length;
     const nodeRadius = 18;
-    const levelWidth = 80;
-    const levelHeight = 60;
+    const levelWidth = 100;
+    const levelHeight = 50;
     const width = steps * levelWidth + 100;
-    const height = steps * levelHeight + 50;
+    // Calculate visualization height based on max nodes (at last step 2N+1 nodes)
+    const maxNodes = 2 * (steps - 1) + 1;
+    const height = maxNodes * levelHeight + 100;
+    const centerY = height / 2;
 
     const nodes = [];
     const links = [];
 
+    // Identify and position nodes
     for (let i = 0; i < steps; i++) {
-        for (let j = 0; j <= i; j++) {
+        // En trinomial, nivel i tiene 2*i + 1 nodos
+        // El backend devuelve lista de listas. priceTree[i] es array de length 2*i+1.
+
+        for (let k = 0; k < priceTree[i].length; k++) {
             const x = i * levelWidth + 50;
-            const y = (height / 2) + (j - i / 2) * levelHeight;
 
-            nodes.push({ id: `${i}-${j}`, x, y, price: priceTree[i][j], value: valueTree[i][j] });
+            // k va de 0 a 2i. 
+            // k=i es el centro (j=0). 
+            // Queremos que k=2i (j=i, precio mas alto) este arriba (y menor).
+            // Queremos que k=0 (j=-i, precio mas bajo) este abajo (y mayor).
 
+            // offset from center: j = k - i.
+            // y = centerY - j * levelHeight
+            //   = centerY - (k - i) * levelHeight
+            //   = centerY + (i - k) * levelHeight
+
+            const j = k - i;
+            const y = centerY - j * levelHeight;
+
+            nodes.push({
+                id: `${i}-${k}`,
+                x,
+                y,
+                price: priceTree[i][k],
+                value: valueTree[i][k]
+            });
+
+            // Links to next step
             if (i < steps - 1) {
+                // Node (i, k) conecta con (i+1, k), (i+1, k+1), (i+1, k+2)
                 const nextX = (i + 1) * levelWidth + 50;
-                const nextYUp = (height / 2) + (j - (i + 1) / 2) * levelHeight;
-                const nextYDown = (height / 2) + ((j + 1) - (i + 1) / 2) * levelHeight;
 
-                links.push({ x1: x, y1: y, x2: nextX, y2: nextYUp });
-                links.push({ x1: x, y1: y, x2: nextX, y2: nextYDown });
+                // Targets k indices in next level
+                const targets = [k, k + 1, k + 2];
+
+                targets.forEach(targetK => {
+                    const targetJ = targetK - (i + 1);
+                    const targetY = centerY - targetJ * levelHeight;
+
+                    links.push({
+                        x1: x, y1: y,
+                        x2: nextX, y2: targetY
+                    });
+                });
             }
         }
     }
@@ -52,7 +118,7 @@ export default function TreeVisualizer({ priceTree, valueTree, nSteps }) {
             className="glass-panel"
             style={{ padding: '1.5rem', minHeight: '400px', overflowX: 'auto' }}
         >
-            <h3>Tree Visualization</h3>
+            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Trinomial Tree Visualization</h3>
             <div style={{ overflow: 'auto', textAlign: 'center' }}>
                 <svg width={width} height={height}>
                     <defs>
@@ -68,6 +134,7 @@ export default function TreeVisualizer({ priceTree, valueTree, nSteps }) {
                             x2={link.x2} y2={link.y2}
                             stroke="#475569"
                             strokeWidth="1"
+                            opacity="0.4"
                         />
                     ))}
 

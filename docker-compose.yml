@@ -9,29 +9,28 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - ./backend/api.py:/app/api.py
+      - ./backend/trinomial.c:/app/trinomial.c
+      - ./backend/trinomial.h:/app/trinomial.h
       - ./backend/requirements.txt:/app/requirements.txt
     networks:
-      - binomial-net
+      - trinomial-net
 
   frontend:
-    build: ./frontend
+    image: node:18-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host"
     ports:
-      - "80:80"
+      - "5173:5173"
     depends_on:
       - backend
     environment:
       - VITE_API_URL=http://localhost:8000
     volumes:
-      # Bind mounts para desarrollo con hot-reload
-      - ./frontend/src:/app/src
-      - ./frontend/index.html:/app/index.html
-      - ./frontend/vite.config.js:/app/vite.config.js
-      - ./frontend/package.json:/app/package.json
-      # Volumen anónimo para node_modules (evita conflictos con el host)
+      - ./frontend:/app
       - /app/node_modules
     networks:
-      - binomial-net
+      - trinomial-net
 
 networks:
-  binomial-net:
+  trinomial-net:
     driver: bridge
