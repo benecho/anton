@@ -42,9 +42,7 @@ export default function CalibrationPanel({ params, setParams, style }) {
 
             // Basic validation before sending
             if (Theta.length + 1 !== tau.length) {
-                // Try to adjust tau if user didn't update it to match M+1
-                // Actually the backend requires len(tau) == M+1.
-                // Let's assume user knows what they are doing or handle error.
+                // Mismatch in Theta and tau lengths
             }
 
             const payload = {

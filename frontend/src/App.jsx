@@ -11,8 +11,7 @@ function App() {
         isAmerican: true,
         type: 'CALL',
         ThetaStr: "0.2, 0.25, 0.22",
-        tauStr: "0.0, 0.4, 0.7, 1.0",
-        showTree: true
+        tauStr: "0.0, 0.4, 0.7, 1.0"
     });
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -21,8 +20,6 @@ function App() {
         setResult(null); // Clear immediately to prevent rendering heavy tree with new params
         setParams({ ...params, [e.target.name]: e.target.value });
     };
-
-    // Removed useEffect to avoid double render cycle
 
     const calculate = async (e) => {
         e.preventDefault();
@@ -44,14 +41,7 @@ function App() {
             };
 
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-            let response;
-            if (params.showTree) {
-                response = await axios.post(`${apiUrl}/tree`, payload);
-            } else {
-                response = await axios.post(`${apiUrl}/price`, payload);
-            }
-
+            const response = await axios.post(`${apiUrl}/tree`, payload);
             setResult(response.data);
         } catch (err) {
             console.error(err);
@@ -117,12 +107,15 @@ function App() {
 
                     <ResultPanel result={result} />
 
-                    <TreeVisualizer
-                        priceTree={result?.priceTree}
-                        valueTree={result?.valueTree}
-                        nSteps={params.N}
-                        showTree={params.showTree}
-                    />
+                    <ErrorBoundary>
+                        <TreeVisualizer
+                            priceTree={result?.priceTree}
+                            valueTree={result?.valueTree}
+                            nSteps={params.N}
+                        />
+                    </ErrorBoundary>
+
+
 
                 </div>
             </div>
@@ -152,4 +145,33 @@ function App() {
 }
 
 
-export default App
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        console.error("ErrorBoundary caught an error:", error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: '#f87171' }}>
+                    <h3>Visualization Error</h3>
+                    <p>Something went wrong rendering this component.</p>
+                    <small>{this.state.error.toString()}</small>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
+export default App;

@@ -1,17 +1,15 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 
-export default function TreeNodes({ data, getColor }) {
-    const { mode, N, maxOptionValue, priceTree, valueTree } = data;
+export default function TreeNodes({ priceTree, valueTree, nSteps, maxOptionValue, filterSteps, getColor }) {
 
     const treeData = useMemo(() => {
         let displaySteps = [];
         const totalSteps = priceTree.length;
 
-        if (mode === 'full-tree') {
+        if (!filterSteps) {
             for (let i = 0; i < totalSteps; i++) displaySteps.push(i);
         } else {
-            // Filtered tree
             for (let i = 0; i < totalSteps; i += 10) {
                 displaySteps.push(i);
             }
@@ -24,7 +22,7 @@ export default function TreeNodes({ data, getColor }) {
         const links = [];
         const stepLabels = [];
 
-        const isLargeN = N > 10;
+        const isLargeN = nSteps > 10;
         const nodeRadius = isLargeN ? 12 : 16;
         const fontSize = isLargeN ? 7 : 9;
         const priceSize = isLargeN ? 6 : 7;
@@ -92,7 +90,7 @@ export default function TreeNodes({ data, getColor }) {
         });
 
         return { nodes, links, width, height, stepLabels, nodeRadius, fontSize, priceSize };
-    }, [mode, N, priceTree, valueTree, maxOptionValue, getColor]);
+    }, [filterSteps, nSteps, priceTree, valueTree, maxOptionValue, getColor]);
 
     const { nodes, links, width, height, stepLabels, nodeRadius, fontSize, priceSize } = treeData;
 
@@ -106,7 +104,7 @@ export default function TreeNodes({ data, getColor }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h3 style={{ margin: 0 }}>Trinomial Heatmap Tree</h3>
                 <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                    Showing steps: {N > 10 ? '0, 10, 20, 30...' : 'All'}
+                    Showing steps: {nSteps > 10 ? '0, 10, 20, 30...' : 'All'}
                 </div>
             </div>
 

@@ -3,8 +3,6 @@ import { motion } from 'framer-motion';
 
 export default function ControlPanel({ params, handleChange, calculate, loading, setParams }) {
 
-    // Removed auto-disable logic - now tree works for all N values
-
     return (
         <motion.div
             initial={{ x: -20, opacity: 0 }}
@@ -37,13 +35,11 @@ export default function ControlPanel({ params, handleChange, calculate, loading,
 
                 <div>
                     <label>Steps (N)</label>
-                    <input type="number" name="N" value={params.N} onChange={handleChange} max="500" required />
+                    <input type="number" name="N" value={params.N} onChange={handleChange} max="100" required />
                     <small style={{ display: 'block', color: '#64748b', fontSize: '0.7rem', marginTop: 4 }}>
                         {Number(params.N) > 100
-                            ? "Matrix Heatmap display (N > 100)"
-                            : Number(params.N) > 10
-                                ? "Tree will show steps: 1, 10, 20... (N > 10)"
-                                : "Full tree node display (N ≤ 10)"}
+                            ? "Max N is 100"
+                            : "P&L Heatmap Visualization"}
                     </small>
                 </div>
 
@@ -77,21 +73,8 @@ export default function ControlPanel({ params, handleChange, calculate, loading,
                     </div>
                 </div>
 
-                <div style={{ marginTop: '0.5rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            name="showTree"
-                            checked={params.showTree}
-                            onChange={(e) => setParams({ ...params, showTree: e.target.checked })}
-                            style={{ width: 'auto' }}
-                        />
-                        <span>Show Tree Visualization</span>
-                    </label>
-                </div>
-
                 <button type="submit" className="btn-primary" disabled={loading}>
-                    {loading ? 'Calculating...' : 'Calculate Price'}
+                    {loading ? 'Calculating...' : 'Calculate'}
                 </button>
             </form>
         </motion.div>

@@ -33,7 +33,7 @@ app.add_middleware(
 )
 
 # ==========================================================
-# Cargar librería C
+# Load C Library
 # ==========================================================
 try:
     lib = ctypes.CDLL("./trinomial_model.so")
@@ -43,7 +43,7 @@ except OSError:
 
 
 # ==========================================================
-# Definir estructuras C
+# C Structures Definition
 # ==========================================================
 
 class Params(ctypes.Structure):
@@ -68,7 +68,7 @@ class TrinomialResults(ctypes.Structure):
         ("valueTree", ctypes.POINTER(ctypes.c_double))
     ]
 
-# Configurar firmas de funciones
+# Configure function signatures
 lib.runTrinomialModel.argtypes = [Params]
 lib.runTrinomialModel.restype = TrinomialResults
 
@@ -76,7 +76,7 @@ lib.freeTrinomialResults.argtypes = [ctypes.POINTER(TrinomialResults)]
 lib.freeTrinomialResults.restype = None
 
 # ==========================================================
-# Modelos Pydantic para API
+# Pydantic Models for API
 # ==========================================================
 
 class ModelParams(BaseModel):
@@ -101,18 +101,13 @@ class ModelParams(BaseModel):
             }
         }
 
-# ==========================================================
 # Helpers
-# ==========================================================
 
 def get_c_params(input_data: ModelParams) -> Params:
-    # Preparar arrays
+    # Prepare arrays
     M = len(input_data.Theta)
     
-    # Validar tau length (debe ser M+1?? segun C code? C code: tau m and m+1 used.
-    # struct says: double *tau; // Vector de tiempos tau[] (size M+1)
-    # The example in main.c has M=3, Theta size 3, tau size 4.
-    # So we expect tau to be implicitly M+1 or check length.
+    # Validate tau length (should be M+1 according to C logic, or handled there)
     
     ThetaArray = (ctypes.c_double * M)(*input_data.Theta)
     TauArray = (ctypes.c_double * len(input_data.tau))(*input_data.tau)
@@ -137,27 +132,7 @@ def get_c_params(input_data: ModelParams) -> Params:
     
     return p
 
-# ==========================================================
 # Endpoints
-# ==========================================================
-
-@app.post("/price")
-def calculate_price(params: ModelParams):
-    c_params = get_c_params(params)
-    
-    # Ejecutar modelo
-    results = lib.runTrinomialModel(c_params)
-    
-    price = float(results.price)
-    
-    # Liberar memoria de árboles (aunque return solo precio, se calcularon)
-    # TrinomialResults se pasa por referencia a free
-    lib.freeTrinomialResults(ctypes.byref(results))
-    
-    if np.isnan(price):
-        return JSONResponse(status_code=400, content={"error": "Calculation failed (NaN)"})
-        
-    return {"price": price}
 
 @app.post("/tree")
 def calculate_tree(params: ModelParams):
@@ -169,25 +144,25 @@ def calculate_tree(params: ModelParams):
         lib.freeTrinomialResults(ctypes.byref(results))
         return JSONResponse(status_code=400, content={"error": "Calculation failed (NaN)"})
     
-    # Extraer árboles
-    # El tamaño del árbol es (N+1)*(2N+1) según C, pero la indexación es idx(i, j)
+    # Extract trees
+    # Tree size is (N+1)*(2N+1) according to C, but indexing is idx(i, j)
     # idx(i, j) = i * (2N+1) + (j+N)
-    # Queremos convertir esto a una estructura JSON amigable.
-    # Una lista de listas donde cada nivel i tiene sus nodos j.
+    # We want to convert this to a friendly JSON structure.
+    # List of lists where each level i has its j nodes.
     
     N = results.N
     width = 2 * N + 1
     total_size = (N + 1) * width
     
-    # Convertir punteros a numpy arrays (copia)
-    # Ojo: as_array no posee la memoria, así que copiamos antes de free
+    # Convert pointers to numpy arrays (copy)
+    # Note: as_array does not own memory, so we copy before free
     price_flat = np.ctypeslib.as_array(results.priceTree, shape=(total_size,)).copy()
     value_flat = np.ctypeslib.as_array(results.valueTree, shape=(total_size,)).copy()
     
     lib.freeTrinomialResults(ctypes.byref(results))
     
-    # Estructurar en niveles
-    # Para nivel i, j va de -i a i.
+    # Structure into levels
+    # For level i, j goes from -i to i.
     price_tree = []
     value_tree = []
     
@@ -208,9 +183,7 @@ def calculate_tree(params: ModelParams):
         "valueTree": value_tree
     }
 
-# ==========================================================
-# Endpoint 3: CALIBRACIÓN
-# ==========================================================
+# Endpoint 3: CALIBRATION
 
 class CalibrationParams(BaseModel):
     S0: float
@@ -227,7 +200,7 @@ class CalibrationParams(BaseModel):
     max_iter: int = 500
     tolerance: float = 1e-6
 
-# Configurar firma de nelderMead
+# Configure nelderMead signature
 lib.nelderMead.argtypes = [
     ctypes.POINTER(ctypes.c_double),
     ctypes.c_int,
