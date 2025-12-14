@@ -6,11 +6,11 @@ RUN apt-get update && \
     apt-get install -y gcc build-essential && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy files - try backend/ first, fallback to current directory
-COPY backend/trinomial.cpp ./trinomial.cpp 2>/dev/null || COPY trinomial.cpp ./trinomial.cpp
-COPY backend/trinomial.hpp ./trinomial.hpp 2>/dev/null || COPY trinomial.hpp ./trinomial.hpp
-COPY backend/api.py ./api.py 2>/dev/null || COPY api.py ./api.py
-COPY backend/requirements.txt ./requirements.txt 2>/dev/null || COPY requirements.txt ./requirements.txt
+# Copy files from current context
+COPY trinomial.cpp ./
+COPY trinomial.hpp ./
+COPY api.py ./
+COPY requirements.txt ./
 
 RUN g++ -shared -fPIC -std=c++17 trinomial.cpp -o trinomial_model.so -lm
 
